@@ -1,0 +1,39 @@
+name: test ansible with ara
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user ansible-core ara
+
+      - name: Test running a playbook
+        shell: bash
+        env:
+          ARA_API_CLIENT: http
+          ARA_API_SERVER: https://demo.recordsansible.org
+          ARA_API_USERNAME: ${{ secrets.ARA_API_USERNAME }}
+          ARA_API_PASSWORD: "${{ secrets.ARA_API_PASSWORD }}"
+          ARA_CALLBACK_THREADS: 4
+          # https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
+          ARA_DEFAULT_LABELS: >-
+            repository:${{ github.repository }},pr:${{ github.event.number }},ref:${{ github.ref }},sha:${{ github.sha }}
+        run: |
+          export ANSIBLE_CALLBACK_PLUGINS=$(python3 -m ara.setup.callback_plugins)
+          ansible-playbook -vv test-playbook.yml
